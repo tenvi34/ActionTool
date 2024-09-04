@@ -90,7 +90,6 @@ public class ActionToolWindow : EditorWindow
             switch (evt.eventType)
             {
                 case ActionEventType.Animation:
-                    Debug.Log(evt.eventData as AnimationData);
                     if (evt.eventData is AnimationData data1)
                     {
                         data1.AnimationName = EditorGUILayout.TextField("AnimationName", data1.AnimationName);
@@ -110,10 +109,6 @@ public class ActionToolWindow : EditorWindow
                     if (evt.eventData is EffectData data2)
                     {
                         data2.effectPrefab = EditorGUILayout.ObjectField("Effect Prefab", data2.effectPrefab, typeof(GameObject), false) as GameObject;
-                        
-                        string uniqueName = AssetDatabase.GenerateUniqueAssetPath($"{ActionEventsFolderPath}/{Guid.NewGuid().ToString()}.asset");
-                        AssetDatabase.CreateAsset(evt.eventData , uniqueName);
-                        AssetDatabase.SaveAssets();
                     }
                     else
                     {
@@ -133,7 +128,9 @@ public class ActionToolWindow : EditorWindow
                     {
                         evt.eventData = CreateInstance<AudioData>();
                         
-                        
+                        string uniqueName = AssetDatabase.GenerateUniqueAssetPath($"{ActionEventsFolderPath}/{Guid.NewGuid().ToString()}.asset");
+                        AssetDatabase.CreateAsset(evt.eventData , uniqueName);
+                        AssetDatabase.SaveAssets();
                     }
                     break;
             }
