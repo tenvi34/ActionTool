@@ -50,7 +50,7 @@ public class ActionController : MonoBehaviour
         {
             if (EditorApplication.isPlaying)
             {
-            
+                
             }
             else
             {

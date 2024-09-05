@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
+using UnityEditor.Animations;
 
 
 public class AnimationData : ScriptableObject
@@ -53,6 +54,12 @@ public class ActionToolWindow : EditorWindow
     {
         GUILayout.Label("Action Tool", EditorStyles.boldLabel);
 
+        // 오브젝트를 선택하면 되게 한다.
+        if (Selection.activeGameObject)
+        {
+            selectedAction = Selection.activeGameObject.GetComponent<ActionController>();
+        }
+        
         selectedAction = EditorGUILayout.ObjectField("Action Controller", selectedAction, typeof(ActionController), true) as ActionController;
 
         if (selectedAction == null)
@@ -90,6 +97,7 @@ public class ActionToolWindow : EditorWindow
             switch (evt.eventType)
             {
                 case ActionEventType.Animation:
+                    EditorGUI.BeginChangeCheck();
                     if (evt.eventData is AnimationData data1)
                     {
                         data1.AnimationName = EditorGUILayout.TextField("AnimationName", data1.AnimationName);
@@ -104,8 +112,41 @@ public class ActionToolWindow : EditorWindow
                         AssetDatabase.CreateAsset(evt.eventData , uniqueName);
                         AssetDatabase.SaveAssets();
                     }
+
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        if (evt.eventData is AnimationData animationData)
+                        {
+                            Animator animator = selectedAction.GetComponent<Animator>();
+                            if (animator)
+                            {
+                                var controller = animator.runtimeAnimatorController as UnityEditor.Animations.AnimatorController;
+                                if (controller)
+                                {
+                                    foreach (var childAnimatorState in controller.layers[animationData.AnimationLayer].stateMachine.states)
+                                    {
+                                        if (childAnimatorState.state.name == animationData.AnimationName)
+                                        {
+                                            if (childAnimatorState.state.motion is AnimationClip clip)
+                                            {
+                                                float endtime = evt.startTime + clip.length;
+                                                if (endtime >= selectedAction.actionDuration)
+                                                {
+                                                    endtime = selectedAction.actionDuration;
+                                                }
+
+                                                evt.endTime = endtime;
+                                            }
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                     break;
                 case ActionEventType.Effect:
+                    EditorGUI.BeginChangeCheck();
                     if (evt.eventData is EffectData data2)
                     {
                         data2.effectPrefab = EditorGUILayout.ObjectField("Effect Prefab", data2.effectPrefab, typeof(GameObject), false) as GameObject;
@@ -118,8 +159,30 @@ public class ActionToolWindow : EditorWindow
                         AssetDatabase.CreateAsset(evt.eventData , uniqueName);
                         AssetDatabase.SaveAssets();
                     }
+
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        if (evt.eventData is EffectData effectData)
+                        {
+                            if (effectData.effectPrefab)
+                            {
+                                ParticleSystem ps = effectData.effectPrefab.GetComponent<ParticleSystem>();
+                                if (ps)
+                                {
+                                    float endTime = evt.startTime + ps.main.duration;
+                                    if (endTime >= selectedAction.actionDuration)
+                                    {
+                                        endTime = selectedAction.actionDuration;
+                                    }
+
+                                    evt.endTime = endTime;
+                                }
+                            }
+                        }
+                    }
                     break;
                 case ActionEventType.Sound:
+                    EditorGUI.BeginChangeCheck();
                     if (evt.eventData is AudioData data3)
                     {
                         data3.soundClip = EditorGUILayout.ObjectField("Audio Prefab", data3.soundClip, typeof(AudioClip), false) as AudioClip;
@@ -132,6 +195,21 @@ public class ActionToolWindow : EditorWindow
                         AssetDatabase.CreateAsset(evt.eventData , uniqueName);
                         AssetDatabase.SaveAssets();
                     }
+
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                        if (evt.eventData is AudioData audioData)
+                        {
+                            float endTime = evt.startTime + audioData.soundClip.length;
+                            if (endTime >= selectedAction.actionDuration)
+                            {
+                                endTime = selectedAction.actionDuration;
+                            }
+
+                            evt.endTime = endTime;
+                        }
+                    }
+
                     break;
             }
 
