@@ -32,10 +32,10 @@ public class ActionToolWindow : EditorWindow
 {
     private const string ActionEventsFolderPath = "Assets/ActionEvents";
     
-    private ActionController selectedAction;
+    private ActionScript selectedAction;
     private Vector2 scrollPosition;
     private float previewTime = 0f;
-    private ActionController.PreviewState isPreviewState = ActionController.PreviewState.Stop;
+    private ActionScript.PreviewState isPreviewState = ActionScript.PreviewState.Stop;
     private float lastPreviewUpdateTime;
     private float timelineWidth = 300f;
     private float eventHeight = 20f;
@@ -57,10 +57,10 @@ public class ActionToolWindow : EditorWindow
         // 오브젝트를 선택하면 되게 한다.
         if (Selection.activeGameObject)
         {
-            selectedAction = Selection.activeGameObject.GetComponent<ActionController>();
+            selectedAction = Selection.activeGameObject.GetComponent<ActionScript>();
         }
         
-        selectedAction = EditorGUILayout.ObjectField("Action Controller", selectedAction, typeof(ActionController), true) as ActionController;
+        selectedAction = EditorGUILayout.ObjectField("Action Controller", selectedAction, typeof(ActionScript), true) as ActionScript;
 
         if (selectedAction == null)
         {
@@ -215,8 +215,8 @@ public class ActionToolWindow : EditorWindow
 
             if (EditorGUI.EndChangeCheck())
             {
-                EditorUtility.SetDirty(evt.eventData);
-                EditorUtility.SetDirty(selectedAction);
+                EditorUtility.SetDirty(evt.eventData); // 저장
+                EditorUtility.SetDirty(selectedAction); // 저장
             }
 
             EditorGUILayout.BeginHorizontal();
@@ -247,6 +247,7 @@ public class ActionToolWindow : EditorWindow
         }
     }
 
+    // 타임라인 계산
     private void DrawEventTimeline(Rect timelineRect, ActionEvent evt)
     {
         EditorGUI.DrawRect(timelineRect, new Color(0.5f, 0.5f, 0.5f));
@@ -321,7 +322,7 @@ public class ActionToolWindow : EditorWindow
         EditorGUILayout.BeginHorizontal();
 
         string btnName = string.Empty;
-        if (isPreviewState == ActionController.PreviewState.Play)
+        if (isPreviewState == ActionScript.PreviewState.Play)
         {
             btnName = "Pause";
         }
@@ -334,17 +335,17 @@ public class ActionToolWindow : EditorWindow
         {
             if (btnName == "Pause")
             {
-                isPreviewState = ActionController.PreviewState.Pause;
+                isPreviewState = ActionScript.PreviewState.Pause;
             }
             else
             {
-                isPreviewState = ActionController.PreviewState.Play;
+                isPreviewState = ActionScript.PreviewState.Play;
             }
             lastPreviewUpdateTime = (float)EditorApplication.timeSinceStartup;
         }
         if (GUILayout.Button("Stop"))
         {
-            isPreviewState = ActionController.PreviewState.Stop;
+            isPreviewState = ActionScript.PreviewState.Stop;
             previewTime = 0f;
         }
         EditorGUILayout.EndHorizontal();
@@ -353,12 +354,12 @@ public class ActionToolWindow : EditorWindow
         previewTime = EditorGUILayout.Slider("Time", previewTime, 0f, selectedAction.actionDuration);
         if (EditorGUI.EndChangeCheck())
         {
-            isPreviewState = ActionController.PreviewState.Timeline;
+            isPreviewState = ActionScript.PreviewState.Timeline;
             PreviewActionAtTime(previewTime);
         }
-        if (isPreviewState != ActionController.PreviewState.Stop 
-            && isPreviewState != ActionController.PreviewState.Timeline
-            && isPreviewState != ActionController.PreviewState.Pause)
+        if (isPreviewState != ActionScript.PreviewState.Stop 
+            && isPreviewState != ActionScript.PreviewState.Timeline
+            && isPreviewState != ActionScript.PreviewState.Pause)
         {
             float deltaTime = (float)EditorApplication.timeSinceStartup - lastPreviewUpdateTime;
             lastPreviewUpdateTime = (float)EditorApplication.timeSinceStartup;

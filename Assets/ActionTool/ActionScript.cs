@@ -26,7 +26,7 @@ public class ActionEvent
     }
 }
 
-public class ActionController : MonoBehaviour
+public class ActionScript : MonoBehaviour
 {
     public float actionDuration = 5f;
     public List<ActionEvent> actionEvents = new List<ActionEvent>();
