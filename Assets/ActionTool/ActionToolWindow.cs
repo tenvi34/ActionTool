@@ -5,34 +5,16 @@ using UnityEditor;
 using UnityEngine;
 using UnityEditor.Animations;
 
-
-public class AnimationData : ScriptableObject
-{
-    [SerializeField]
-    public string AnimationName;
-    
-    [SerializeField]
-    public int AnimationLayer;
-}
-
-public class EffectData : ScriptableObject
-{
-    [SerializeField]
-    public GameObject effectPrefab;
-}
-
-public class AudioData : ScriptableObject
-{
-    [SerializeField]
-    public AudioClip soundClip;
-}
-
 #if UNITY_EDITOR
 public class ActionToolWindow : EditorWindow
 {
     private const string ActionEventsFolderPath = "Assets/ActionEvents";
+    private const string ActionPrefabsFolderPath = "Assets/ActionPrefabs";
+
+    private ActionController preview_actor;
+    private ActionScript runtimeActionScript;
     
-    private ActionScript selectedAction;
+    private ActionScript selectedActionScript;
     private Vector2 scrollPosition;
     private float previewTime = 0f;
     private ActionScript.PreviewState isPreviewState = ActionScript.PreviewState.Stop;
@@ -44,55 +26,111 @@ public class ActionToolWindow : EditorWindow
     private bool isDraggingStart;
     private bool isDraggingEnd;
 
+    private string actionName;
+
+    void OnDestroy()
+    {
+        DestroyActionScripts();
+    }
+
     [MenuItem("Window/Action Tool")]
     public static void ShowWindow()
     {
         GetWindow<ActionToolWindow>("Action Tool");
+        DestroyActionScripts();
+    }
+
+    private static void DestroyActionScripts()
+    {
+        ActionScript[] actionScripts = GameObject.FindObjectsOfType<ActionScript>();
+        foreach (var actionScript in actionScripts)
+        {
+            DestroyImmediate(actionScript.gameObject);
+        }
+    }
+
+    public static bool DoesAssetExist(string assetPath)
+    {
+        // Use AssetDatabase.LoadAssetAtPath to check if the asset exists
+        var asset = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+        return asset != null;
     }
 
     private void OnGUI()
     {
         GUILayout.Label("Action Tool", EditorStyles.boldLabel);
-
-        // 오브젝트를 선택하면 되게 한다.
-        if (Selection.activeGameObject)
+        
+        EditorGUI.BeginChangeCheck();
+        preview_actor = EditorGUILayout.ObjectField("PreviewActor", preview_actor, typeof(ActionController), true) as ActionController;
+        if (EditorGUI.EndChangeCheck())
         {
-            selectedAction = Selection.activeGameObject.GetComponent<ActionScript>();
+            DestroyImmediate(runtimeActionScript);
+            selectedActionScript = null;
         }
         
-        selectedAction = EditorGUILayout.ObjectField("Action Controller", selectedAction, typeof(ActionScript), true) as ActionScript;
-
-        if (selectedAction == null)
+        EditorGUI.BeginChangeCheck();
+        selectedActionScript = EditorGUILayout.ObjectField("ActionScript", selectedActionScript, typeof(ActionScript), false) as ActionScript;
+        if (EditorGUI.EndChangeCheck())
         {
-            EditorGUILayout.HelpBox("Please select an ActionController", MessageType.Info);
-            return;
+            CreateRuntimeScript();
         }
 
-        selectedAction.actionDuration = EditorGUILayout.FloatField("Action Duration", selectedAction.actionDuration);
+        Repaint();
+        
+        EditorGUILayout.BeginHorizontal();
+        actionName = EditorGUILayout.TextField("ActionName", actionName);
+        
+        if (GUILayout.Button("Add New ActionScript"))
+        {
+            string actionPreafabName = $"{ActionPrefabsFolderPath}/{actionName}.prefab";
+            if (DoesAssetExist(actionPreafabName))
+            {
+                EditorUtility.DisplayDialog("알림", "이미 존재하는 액션 이름입니다.", "확인");
+            }
+            else
+            {
+                GameObject prefab = new GameObject(actionName);
+                prefab.AddComponent<ActionScript>();
+                PrefabUtility.SaveAsPrefabAsset(prefab, actionPreafabName);
+                DestroyImmediate(prefab);
+                AssetDatabase.SaveAssets();
+                prefab = PrefabUtility.LoadPrefabContents(actionPreafabName);
+                selectedActionScript =  prefab.GetComponent<ActionScript>();
+            }
+        }
+        EditorGUILayout.EndHorizontal();
 
+        if (selectedActionScript == null)
+        {
+            EditorGUILayout.HelpBox("Please select an ActionScript", MessageType.Info);
+            return;
+        }
+        
+        selectedActionScript!.actionDuration = EditorGUILayout.FloatField("Action Duration", selectedActionScript.actionDuration);
+        
         if (GUILayout.Button("Add New Event"))
         {
             AddNewEvent();
         }
-
+        
         scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
-
+        
         DrawEventTimelines();
-
+        
         EditorGUILayout.EndScrollView();
-
+        
         DrawTimelinePreview();
     }
 
     private void DrawEventTimelines()
     {
-        for (int i = 0; i < selectedAction.actionEvents.Count; i++)
+        for (int i = 0; i < selectedActionScript.actionEvents.Count; i++)
         {
-            ActionEvent evt = selectedAction.actionEvents[i];
+            ActionEvent evt = selectedActionScript.actionEvents[i];
             EditorGUILayout.BeginVertical(GUI.skin.box);
-
+    
             evt.eventType = (ActionEventType)EditorGUILayout.EnumPopup("Event Type", evt.eventType);
-
+    
             EditorGUI.BeginChangeCheck();
             switch (evt.eventType)
             {
@@ -112,32 +150,35 @@ public class ActionToolWindow : EditorWindow
                         AssetDatabase.CreateAsset(evt.eventData , uniqueName);
                         AssetDatabase.SaveAssets();
                     }
-
+    
                     if (EditorGUI.EndChangeCheck())
                     {
-                        if (evt.eventData is AnimationData animationData)
+                        if (preview_actor)
                         {
-                            Animator animator = selectedAction.GetComponent<Animator>();
-                            if (animator)
+                            if (evt.eventData is AnimationData animationData)
                             {
-                                var controller = animator.runtimeAnimatorController as UnityEditor.Animations.AnimatorController;
-                                if (controller)
+                                Animator animator = preview_actor.GetComponent<Animator>();
+                                if (animator)
                                 {
-                                    foreach (var childAnimatorState in controller.layers[animationData.AnimationLayer].stateMachine.states)
+                                    var controller = animator.runtimeAnimatorController as UnityEditor.Animations.AnimatorController;
+                                    if (controller)
                                     {
-                                        if (childAnimatorState.state.name == animationData.AnimationName)
+                                        foreach (var childAnimatorState in controller.layers[animationData.AnimationLayer].stateMachine.states)
                                         {
-                                            if (childAnimatorState.state.motion is AnimationClip clip)
+                                            if (childAnimatorState.state.name == animationData.AnimationName)
                                             {
-                                                float endtime = evt.startTime + clip.length;
-                                                if (endtime >= selectedAction.actionDuration)
+                                                if (childAnimatorState.state.motion is AnimationClip clip)
                                                 {
-                                                    endtime = selectedAction.actionDuration;
-                                                }
+                                                    float endtime = evt.startTime + clip.length;
+                                                    if (endtime >= selectedActionScript.actionDuration)
+                                                    {
+                                                        endtime = selectedActionScript.actionDuration;
+                                                    }
 
-                                                evt.endTime = endtime;
+                                                    evt.endTime = endtime;
+                                                }
+                                                break;
                                             }
-                                            break;
                                         }
                                     }
                                 }
@@ -159,7 +200,7 @@ public class ActionToolWindow : EditorWindow
                         AssetDatabase.CreateAsset(evt.eventData , uniqueName);
                         AssetDatabase.SaveAssets();
                     }
-
+    
                     if (EditorGUI.EndChangeCheck())
                     {
                         if (evt.eventData is EffectData effectData)
@@ -170,11 +211,11 @@ public class ActionToolWindow : EditorWindow
                                 if (ps)
                                 {
                                     float endTime = evt.startTime + ps.main.duration;
-                                    if (endTime >= selectedAction.actionDuration)
+                                    if (endTime >= selectedActionScript.actionDuration)
                                     {
-                                        endTime = selectedAction.actionDuration;
+                                        endTime = selectedActionScript.actionDuration;
                                     }
-
+    
                                     evt.endTime = endTime;
                                 }
                             }
@@ -195,72 +236,94 @@ public class ActionToolWindow : EditorWindow
                         AssetDatabase.CreateAsset(evt.eventData , uniqueName);
                         AssetDatabase.SaveAssets();
                     }
-
+    
                     if (EditorGUI.EndChangeCheck())
                     {
                         if (evt.eventData is AudioData audioData)
                         {
                             float endTime = evt.startTime + audioData.soundClip.length;
-                            if (endTime >= selectedAction.actionDuration)
+                            if (endTime >= selectedActionScript.actionDuration)
                             {
-                                endTime = selectedAction.actionDuration;
+                                endTime = selectedActionScript.actionDuration;
                             }
-
+    
                             evt.endTime = endTime;
                         }
                     }
-
+    
                     break;
             }
-
+    
             if (EditorGUI.EndChangeCheck())
             {
-                EditorUtility.SetDirty(evt.eventData); // 저장
-                EditorUtility.SetDirty(selectedAction); // 저장
+                EditorUtility.SetDirty(evt.eventData);
+                EditorUtility.SetDirty(selectedActionScript);
+                CreateRuntimeScript();
             }
-
+    
             EditorGUILayout.BeginHorizontal();
             EditorGUILayout.PrefixLabel("Timeline");
             Rect timelineRect = GUILayoutUtility.GetRect(timelineWidth, eventHeight);
             DrawEventTimeline(timelineRect, evt);
             EditorGUILayout.EndHorizontal();
-
+    
             EditorGUILayout.BeginHorizontal();
+            
+            
+            EditorGUI.BeginChangeCheck();
             evt.startTime = EditorGUILayout.FloatField("Start Time", evt.startTime);
             evt.endTime = EditorGUILayout.FloatField("End Time", evt.endTime);
+            if (EditorGUI.EndChangeCheck())
+            {
+                EditorUtility.SetDirty(evt.eventData);
+                EditorUtility.SetDirty(selectedActionScript);
+                CreateRuntimeScript();
+            }
             EditorGUILayout.EndHorizontal();
-
+    
             if (GUILayout.Button("Remove Event"))
             {
-                ActionEvent _evt = selectedAction.actionEvents[i];
+                ActionEvent _evt = selectedActionScript.actionEvents[i];
                 if (_evt.eventData != null)
                 {
                     string path = AssetDatabase.GetAssetPath(_evt.eventData);
                     AssetDatabase.DeleteAsset(path);
                 }
-                selectedAction.actionEvents.RemoveAt(i);
-                EditorUtility.SetDirty(selectedAction);
+                selectedActionScript.actionEvents.RemoveAt(i);
+                EditorUtility.SetDirty(selectedActionScript);
                 i--;
             }
-
+    
             EditorGUILayout.EndVertical();
         }
     }
 
-    // 타임라인 계산
+    private void CreateRuntimeScript()
+    {
+        if (runtimeActionScript)
+            DestroyImmediate(runtimeActionScript.gameObject);
+        
+        if (preview_actor && selectedActionScript)
+        {
+            runtimeActionScript = Instantiate(selectedActionScript.gameObject, preview_actor.transform.position,
+                preview_actor.transform.rotation).GetComponent<ActionScript>();
+        }
+    }
+
+    //
     private void DrawEventTimeline(Rect timelineRect, ActionEvent evt)
     {
         EditorGUI.DrawRect(timelineRect, new Color(0.5f, 0.5f, 0.5f));
-
-        float startX = timelineRect.x + (evt.startTime / selectedAction.actionDuration) * timelineRect.width;
-        float endX = timelineRect.x + (evt.endTime / selectedAction.actionDuration) * timelineRect.width;
+    
+        float startX = timelineRect.x + (evt.startTime / selectedActionScript.actionDuration) * timelineRect.width;
+        float endX = timelineRect.x + (evt.endTime / selectedActionScript.actionDuration) * timelineRect.width;
         Rect eventRect = new Rect(startX, timelineRect.y, endX - startX, timelineRect.height);
-
+    
         EditorGUI.DrawRect(eventRect, GetEventColor(evt.eventType));
-
+    
         EditorGUIUtility.AddCursorRect(new Rect(eventRect.x, eventRect.y, 5, eventRect.height), MouseCursor.ResizeHorizontal);
         EditorGUIUtility.AddCursorRect(new Rect(eventRect.xMax - 5, eventRect.y, 5, eventRect.height), MouseCursor.ResizeHorizontal);
-
+    
         Event e = Event.current;
         switch (e.type)
         {
@@ -277,20 +340,21 @@ public class ActionToolWindow : EditorWindow
                     e.Use();
                 }
                 break;
-
+    
             case EventType.MouseDrag:
                 if (draggingEvent == evt)
                 {
-                    float dragDelta = e.delta.x / timelineRect.width * selectedAction.actionDuration;
+                    float dragDelta = e.delta.x / timelineRect.width * selectedActionScript.actionDuration;
                     if (isDraggingStart)
                         evt.startTime = Mathf.Clamp(evt.startTime + dragDelta, 0, evt.endTime - minEventDuration);
                     if (isDraggingEnd)
-                        evt.endTime = Mathf.Clamp(evt.endTime + dragDelta, evt.startTime + minEventDuration, selectedAction.actionDuration);
-                    EditorUtility.SetDirty(selectedAction);
+                        evt.endTime = Mathf.Clamp(evt.endTime + dragDelta, evt.startTime + minEventDuration, selectedActionScript.actionDuration);
+                    EditorUtility.SetDirty(selectedActionScript);
+                    CreateRuntimeScript();
                     e.Use();
                 }
                 break;
-
+    
             case EventType.MouseUp:
                 if (draggingEvent == evt)
                 {
@@ -301,26 +365,30 @@ public class ActionToolWindow : EditorWindow
                 break;
         }
     }
-
+    
     private void AddNewEvent()
     {
-        int newId = selectedAction.GetNextEventId();
-        selectedAction.actionEvents.Add(new ActionEvent(newId)
+        int newId = selectedActionScript.GetNextEventId();
+        selectedActionScript.actionEvents.Add(new ActionEvent(newId)
         {
             eventType = ActionEventType.Animation,
             startTime = 0f,
-            endTime = selectedAction.actionDuration / 2f
+            endTime = selectedActionScript.actionDuration / 2f
         });
-        EditorUtility.SetDirty(selectedAction);
+        EditorUtility.SetDirty(selectedActionScript);
+        CreateRuntimeScript();
     }
-
+    
     private void DrawTimelinePreview()
     {
+        if (!preview_actor)
+            return;
+        
         EditorGUILayout.Space();
         GUILayout.Label("Preview", EditorStyles.boldLabel);
-
+    
         EditorGUILayout.BeginHorizontal();
-
+    
         string btnName = string.Empty;
         if (isPreviewState == ActionScript.PreviewState.Play)
         {
@@ -349,9 +417,9 @@ public class ActionToolWindow : EditorWindow
             previewTime = 0f;
         }
         EditorGUILayout.EndHorizontal();
-
+    
         EditorGUI.BeginChangeCheck();
-        previewTime = EditorGUILayout.Slider("Time", previewTime, 0f, selectedAction.actionDuration);
+        previewTime = EditorGUILayout.Slider("Time", previewTime, 0f, selectedActionScript.actionDuration);
         if (EditorGUI.EndChangeCheck())
         {
             isPreviewState = ActionScript.PreviewState.Timeline;
@@ -364,29 +432,34 @@ public class ActionToolWindow : EditorWindow
             float deltaTime = (float)EditorApplication.timeSinceStartup - lastPreviewUpdateTime;
             lastPreviewUpdateTime = (float)EditorApplication.timeSinceStartup;
             previewTime += deltaTime;
-            if (previewTime > selectedAction.actionDuration)
+            if (previewTime > selectedActionScript.actionDuration)
             {
                 previewTime = 0f;
             }
             Repaint();
-
+    
             PreviewActionAtTime(previewTime);
         }
     }
-
+    
     private void PreviewActionAtTime(float time)
     {
-        selectedAction.BindComponents();
-        selectedAction.SetLockAction(isPreviewState);
-        
-        foreach (var evt in selectedAction.actionEvents)
+        if (!runtimeActionScript)
         {
-            selectedAction.UpdateAction(time);
+            return;
         }
 
+        runtimeActionScript.SetActionController(preview_actor);
+        runtimeActionScript.SetLockAction(isPreviewState);
+        
+        foreach (var evt in runtimeActionScript.actionEvents)
+        {
+            runtimeActionScript.UpdateAction(time);
+        }
+    
         SceneView.RepaintAll();
     }
-
+    
     private Color GetEventColor(ActionEventType eventType)
     {
         switch (eventType)

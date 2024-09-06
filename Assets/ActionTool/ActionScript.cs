@@ -28,6 +28,8 @@ public class ActionEvent
 
 public class ActionScript : MonoBehaviour
 {
+    private ActionController actionController;
+    
     public float actionDuration = 5f;
     public List<ActionEvent> actionEvents = new List<ActionEvent>();
     private int nextEventId = 1;
@@ -35,6 +37,12 @@ public class ActionScript : MonoBehaviour
     private bool isPlaying = false;
     private Animator _animator;
 
+    public void SetActionController(ActionController _actionController)
+    {
+        actionController = _actionController;
+        BindComponents();
+    }
+    
 #if UNITY_EDITOR
     public enum PreviewState
     {
@@ -50,7 +58,7 @@ public class ActionScript : MonoBehaviour
         {
             if (EditorApplication.isPlaying)
             {
-                
+            
             }
             else
             {
@@ -127,14 +135,12 @@ public class ActionScript : MonoBehaviour
     }
 #endif
     
-    void Awake()
-    {
-        BindComponents();
-    }
-
     public void BindComponents()
     {
-        _animator = GetComponent<Animator>();
+        if (actionController)
+        {
+            _animator = actionController.GetComponent<Animator>();
+        }
     }
 
     public int GetNextEventId()
@@ -230,22 +236,22 @@ public class ActionScript : MonoBehaviour
                 }
                 break;
             case ActionEventType.Sound:
-                if (evt.activeAudio != null)
-                {
-                    AudioData audioData = evt.eventData as AudioData;
-                    if (audioData != null && audioData.soundClip != null)
-                    {
-                                        if (!evt.activeAudio.isPlaying)
-                                        {
-                                            evt.activeAudio.Play();
-                                            StartCoroutine(FadeAudioSource(evt.activeAudio, 0, 1, FADE_DURATION));
-                                        }
-                                        
-                                        double dspTime = AudioSettings.dspTime;
-                                        evt.activeAudio.SetScheduledEndTime(dspTime + PREVIEW_DURATION);
-                                        StartCoroutine(FadeAudioSource(evt.activeAudio, 1, 0, FADE_DURATION, dspTime + PREVIEW_DURATION - FADE_DURATION));
-                    }
-                }
+                // if (evt.activeAudio != null)
+                // {
+                //     AudioData audioData = evt.eventData as AudioData;
+                //     if (audioData != null && audioData.soundClip != null)
+                //     {
+                //         if (!evt.activeAudio.isPlaying)
+                //         {
+                //             evt.activeAudio.Play();
+                //             StartCoroutine(FadeAudioSource(evt.activeAudio, 0, 1, FADE_DURATION));
+                //         }
+                //         
+                //         double dspTime = AudioSettings.dspTime;
+                //         evt.activeAudio.SetScheduledEndTime(dspTime + PREVIEW_DURATION);
+                //         StartCoroutine(FadeAudioSource(evt.activeAudio, 1, 0, FADE_DURATION, dspTime + PREVIEW_DURATION - FADE_DURATION));
+                //     }
+                // }
                 break;
             case ActionEventType.Effect:
             {
