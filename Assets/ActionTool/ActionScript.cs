@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Serialization;
 using Object = UnityEngine.Object;
 
 public enum ActionEventType { Animation, Effect, Sound }
@@ -14,8 +15,8 @@ public class ActionEvent
     public int id;
     public ActionEventType eventType;
     public ScriptableObject eventData; // AnimationClip, GameObject (for effect), or AudioClip
-    public float startTime;
-    public float endTime;
+    public int startFrame;
+    public int endFrame;
     public bool isActive = false;
     public GameObject activeEffect;
     public AudioSource activeAudio;
@@ -30,7 +31,10 @@ public class ActionScript : MonoBehaviour
 {
     private ActionController actionController;
     
-    public float actionDuration = 5f;
+    public int totalFrames = 1;
+    // New field for frames per second
+    public int framesPerSecond = 60;
+
     public List<ActionEvent> actionEvents = new List<ActionEvent>();
     private int nextEventId = 1;
     private float currentTime = 0f;
@@ -72,6 +76,17 @@ public class ActionScript : MonoBehaviour
     
     public float originSpeed;
     public bool bLockAction;
+    
+    private float FrameToTime(int frame)
+    {
+        return (float)frame / framesPerSecond;
+    }
+
+    private int TimeToFrame(float time)
+    {
+        return Mathf.RoundToInt(time * framesPerSecond);
+    }
+    
     public void SetLockAction(PreviewState _v)
     {
         if (_v == PreviewState.Stop)
@@ -188,50 +203,50 @@ public class ActionScript : MonoBehaviour
             return;
         }
 
-        UpdateAction(currentTime);
+        UpdateAction(TimeToFrame(currentTime));
         currentTime += Time.deltaTime;
     }
 
-    public void UpdateAction(float in_currentTime)
+    public void UpdateAction(int in_currentFrame)
     {
-        if (0 >= in_currentTime)
+        if (0 >= in_currentFrame)
         {
             StartAction();
         }
         
         foreach (var evt in actionEvents)
         {
-            if (in_currentTime >= evt.startTime && in_currentTime < evt.endTime && !evt.isActive)
+            if (in_currentFrame >= evt.startFrame && in_currentFrame < evt.endFrame && !evt.isActive)
             {
                 StartActionEvent(evt);
             }
-            else if ((in_currentTime >= evt.endTime || in_currentTime < evt.startTime) && evt.isActive)
+            else if ((in_currentFrame >= evt.endFrame || in_currentFrame < evt.startFrame) && evt.isActive)
             {
                 StopActionEvent(evt);
             }
 
             if (evt.isActive)
             {
-                UpdateActionEvent(evt, in_currentTime);
+                UpdateActionEvent(evt, in_currentFrame);
             }
         }
         
-        if (in_currentTime >= actionDuration)
+        if (in_currentFrame >= totalFrames)
         {
             StopAction();
         }
     }
 
-    private void UpdateActionEvent(ActionEvent evt, float in_currentTime)
+    private void UpdateActionEvent(ActionEvent evt, int in_currentFrame)
     {
         #if UNITY_EDITOR
         switch (evt.eventType)
         {
             case ActionEventType.Animation:
                 AnimationData data = evt.eventData as AnimationData;
-                if (in_currentTime >= evt.startTime)
+                if (in_currentFrame >= evt.startFrame)
                 {
-                    _animator.Play(data.AnimationName, data.AnimationLayer, (in_currentTime - evt.startTime) / (evt.endTime - evt.startTime));
+                    _animator.Play(data.AnimationName, data.AnimationLayer, (in_currentFrame - evt.startFrame) / (float)(evt.endFrame - evt.startFrame));
                     _animator.Update(0.0f);
                 }
                 break;
@@ -262,9 +277,9 @@ public class ActionScript : MonoBehaviour
                         ParticleSystem[] pss = actionEvent.activeEffect.GetComponentsInChildren<ParticleSystem>();
                         foreach (var system in pss)
                         {
-                            if (in_currentTime >= actionEvent.startTime)
+                            if (in_currentFrame >= actionEvent.startFrame)
                             {
-                                system.Simulate(in_currentTime - actionEvent.startTime, true, true);
+                                system.Simulate(in_currentFrame - actionEvent.startFrame, true, true);
                                 system.Pause(true);
                             }
                         }
@@ -375,7 +390,7 @@ public class ActionScript : MonoBehaviour
     private Dictionary<int, AudioSource> audioSources = new Dictionary<int, AudioSource>();
     private Dictionary<int, Coroutine> fadeCoroutines = new Dictionary<int, Coroutine>();
 
-    private void UpdateSound(ActionEvent evt, float in_currentTime)
+    private void UpdateSound(ActionEvent evt, int in_currentFrame)
     {
         if (evt.eventData is AudioData audioData && audioData.soundClip != null)
         {
@@ -388,9 +403,9 @@ public class ActionScript : MonoBehaviour
                 audioSources[evt.id] = audioSource;
             }
 
-            float eventDuration = evt.endTime - evt.startTime;
-            float currentEventTime = in_currentTime - evt.startTime;
-            float normalizedTime = Mathf.Clamp01(currentEventTime / eventDuration);
+            int eventDuration = evt.endFrame - evt.startFrame;
+            int currentEventTime = in_currentFrame - evt.startFrame;
+            float normalizedTime = Mathf.Clamp01(currentEventTime / (float)eventDuration);
 
             if (normalizedTime >= 0 && normalizedTime < 1)
             {
