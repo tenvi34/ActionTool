@@ -20,13 +20,15 @@ public class ActionToolWindow : EditorWindow
     private Vector2 scrollPosition;
     private int previewFrame = 0;
     private ActionScript.PreviewState isPreviewState = ActionScript.PreviewState.Stop;
-    private int lastPreviewUpdateFrame;
+    private double lastPreviewUpdateTime;
     private float timelineWidth = 300f;
     private float eventHeight = 20f;
     private int minEventDurationFrames = 1; // Minimum 5 frames for an event
     private ActionEvent draggingEvent;
     private bool isDraggingStart;
     private bool isDraggingEnd;
+
+    private double previewTime = 0.0f;
 
     private string actionName;
 
@@ -151,7 +153,7 @@ public class ActionToolWindow : EditorWindow
             return;
         }
         
-        selectedActionScript!.totalFrames = EditorGUILayout.IntField("Action Duration", selectedActionScript.totalFrames);
+        selectedActionScript!.totalFrames = EditorGUILayout.IntField("Total Frames", selectedActionScript.totalFrames);
         selectedActionScript!.framesPerSecond = EditorGUILayout.IntField("Frames Per Second", selectedActionScript.framesPerSecond);
         
         if (GUILayout.Button("Add New Event"))
@@ -506,17 +508,19 @@ public class ActionToolWindow : EditorWindow
         if (GUILayout.Button(btnName))
         {
             isPreviewState = isPreviewState == ActionScript.PreviewState.Play ? ActionScript.PreviewState.Pause : ActionScript.PreviewState.Play;
-            lastPreviewUpdateFrame = Time.frameCount;
+            lastPreviewUpdateTime = EditorApplication.timeSinceStartup;
+            previewTime = 0.0f;
         }
         if (GUILayout.Button("Stop"))
         {
             isPreviewState = ActionScript.PreviewState.Stop;
             previewFrame = 0;
+            previewTime = 0.0f;
         }
         EditorGUILayout.EndHorizontal();
     
         EditorGUI.BeginChangeCheck();
-        previewFrame = EditorGUILayout.IntSlider("Frame", previewFrame, 0, selectedActionScript.totalFrames - 1);
+        previewFrame = EditorGUILayout.IntSlider("Frame", previewFrame, 0, selectedActionScript.totalFrames);
         if (EditorGUI.EndChangeCheck())
         {
             isPreviewState = ActionScript.PreviewState.Timeline;
@@ -524,12 +528,16 @@ public class ActionToolWindow : EditorWindow
         }
         if (isPreviewState == ActionScript.PreviewState.Play)
         {
-            int deltaFrames = Time.frameCount - lastPreviewUpdateFrame;
-            lastPreviewUpdateFrame = Time.frameCount;
-            previewFrame += deltaFrames;
+            double frameDiff = EditorApplication.timeSinceStartup - lastPreviewUpdateTime;
+            previewTime += frameDiff * selectedActionScript.framesPerSecond;
+            lastPreviewUpdateTime = EditorApplication.timeSinceStartup;
+
+            previewFrame = (int)previewTime;
+            
             if (previewFrame >= selectedActionScript.totalFrames)
             {
                 previewFrame = 0;
+                previewTime = 0.0f;
             }
             Repaint();
     
