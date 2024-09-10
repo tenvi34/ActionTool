@@ -5,6 +5,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEditor.Animations;
 
+
 #if UNITY_EDITOR
 public class ActionToolWindow : EditorWindow
 {
@@ -36,7 +37,8 @@ public class ActionToolWindow : EditorWindow
     [MenuItem("Window/Action Tool")]
     public static void ShowWindow()
     {
-        GetWindow<ActionToolWindow>("Action Tool");
+        ActionToolWindow window = GetWindow<ActionToolWindow>("Action Tool");
+        window.preview_actor = Selection.activeGameObject.GetComponent<ActionController>();
         DestroyActionScripts();
     }
 
