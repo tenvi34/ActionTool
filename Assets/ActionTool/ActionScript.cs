@@ -32,16 +32,24 @@ public class ActionScript : MonoBehaviour
 {
     private ActionController actionController;
     
+    // 액션의 길이를 frames으로 저장하는 방식
     public int totalFrames = 60;
     // New field for frames per second
+    
+    // 1초를 몇배로 뉘니게 할지
     public int framesPerSecond = 60;
 
     public List<ActionEvent> actionEvents = new List<ActionEvent>();
     private int nextEventId = 1;
+     
+    // 현재 액션의 시간을 저장하고 이 시간을 기준으로 제어한다.
     private float currentTime = 0f;
+    
+    // 현재 액션 스크립트가 작동 중인지
     private bool isPlaying = false;
     private Animator _animator;
 
+    // 원래 애니메이션의 정보는 private이기도하고 마음대로 변경되면 안되기에 Editor모드에서만 작동하도록 api를 만들었음
 #if UNITY_EDITOR
     public bool IsPlaying
     {
@@ -55,13 +63,17 @@ public class ActionScript : MonoBehaviour
         }
     }
 #endif
-
+    
+    
+    // 추후 쓰일 예정
     public void SetActionController(ActionController _actionController)
     {
         actionController = _actionController;
         BindComponents();
     }
     
+    // 그냥 일일이 editor체크하기 귀찮아서 editor면 즉시삭제하고
+    // 아니면 그냥 삭제
     void DestroyCustom(Object go)
     {
     #if UNITY_EDITOR
@@ -80,6 +92,7 @@ public class ActionScript : MonoBehaviour
     {
         return Mathf.RoundToInt(time * framesPerSecond);
     }
+    
     
     public void BindComponents()
     {
@@ -112,7 +125,9 @@ public class ActionScript : MonoBehaviour
             }
         }
     }
-
+    
+    // 액션이 가동되면 isPlaying이 true인데 
+    // 액션툴에서는 쓰지 않기 위해 isPlaying을 false로 변경한다.
     private void Update()
     {
         if (!isPlaying) return;
@@ -130,15 +145,19 @@ public class ActionScript : MonoBehaviour
         
         foreach (var evt in actionEvents)
         {
+            // 시작 프레임보다 크면서 endFrame보다는 작은 이벤트를 발생시킴, (액티브 안되어있어야 됨)
             if (curFrame >= evt.startFrame && curFrame < evt.endFrame && !evt.isActive)
             {
                 StartActionEvent(evt);
             }
+            
+            // endFrame을 넘어갔거나 startFrame보다 작으면 액션을 취소
             else if ((curFrame >= evt.endFrame || curFrame < evt.startFrame) && evt.isActive)
             {
                 StopActionEvent(evt);
             }
 
+            // 현재는 사용되지 않으나 추후 확장될거다.
             if (evt.isActive)
             {
                 UpdateActionEvent(evt, curFrame);
