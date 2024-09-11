@@ -1,7 +1,10 @@
 #if UNITY_EDITOR
 
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
+using UnityEditor;
 using UnityEngine;
 
 public class ActionScript_EditorMode : MonoBehaviour
@@ -42,7 +45,34 @@ public class ActionScript_EditorMode : MonoBehaviour
         return (float)frame / framesPerSecond;
     }
 
-    
+    private void OnDestroy()
+    {
+        ClearDamageFields();
+    }
+
+    public void ClearDamageFields()
+    {
+        if (_actionScript.IsUnityNull())
+            return;
+        
+        foreach (var actionEvent in _actionScript.actionEvents)
+        {
+            foreach (var actionEventActiveDamageField in actionEvent.activeDamageFields)
+            {
+                if (actionEventActiveDamageField.IsUnityNull())
+                    continue;
+                
+                if (EditorApplication.isPlaying)
+                    Destroy(actionEventActiveDamageField);
+                else
+                {
+                    DestroyImmediate(actionEventActiveDamageField);
+                }
+            }
+            actionEvent.activeDamageFields.Clear();
+        }
+    }
+
     private void UpdateActionEvent(ActionEvent evt, int curFrame)
     {
         #if UNITY_EDITOR
@@ -87,7 +117,7 @@ public class ActionScript_EditorMode : MonoBehaviour
                             DamageField df = actionEventActiveDamageField.GetComponent<DamageField>();
                             if (curFrame >= actionEvent.startFrame)
                             {
-                                df.UpdateActionEvent(evt, curFrame - actionEvent.startFrame);
+                                df.UpdateActionEvent(curFrame - actionEvent.startFrame);
                             }
                         }
                     }

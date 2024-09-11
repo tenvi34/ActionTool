@@ -7,7 +7,6 @@ using UnityEditor;
 using UnityEngine;
 using UnityEditor.Animations;
 
-
 public enum PreviewState
 {
     Stop,
@@ -15,7 +14,6 @@ public enum PreviewState
     Pause,
     Timeline
 }
-
 
 #if UNITY_EDITOR
 public class ActionToolWindow : EditorWindow
@@ -62,7 +60,9 @@ public class ActionToolWindow : EditorWindow
     public static void ShowWindow()
     {
         ActionToolWindow window = GetWindow<ActionToolWindow>("Action Tool");
-        window.preview_actor = Selection.activeGameObject.GetComponent<ActionController>();
+        if (Selection.activeGameObject)
+            window.preview_actor = Selection.activeGameObject.GetComponent<ActionController>();
+        
         DestroyActionScripts();
     }
 
@@ -121,7 +121,10 @@ public class ActionToolWindow : EditorWindow
         preview_actor = EditorGUILayout.ObjectField("PreviewActor", preview_actor, typeof(ActionController), true) as ActionController;
         if (EditorGUI.EndChangeCheck())
         {
-            DestroyImmediate(runtimeActionScript.gameObject);
+            if (runtimeActionScript)
+            {
+                DestroyImmediate(runtimeActionScript.gameObject);
+            }
             selectedActionScript = null;
         }
         
@@ -345,6 +348,7 @@ public class ActionToolWindow : EditorWindow
                     if (evt.eventData is DamageFieldData data4)
                     {
                         data4.damageFieldPrefab = EditorGUILayout.ObjectField("DamageField Prefab", data4.damageFieldPrefab, typeof(GameObject), false) as GameObject;
+                        data4.EndActionType = (DamageFieldEndAction)EditorGUILayout.EnumPopup("EndAction Type", data4.EndActionType);
                     }
                     else
                     {
@@ -408,12 +412,17 @@ public class ActionToolWindow : EditorWindow
 
     private void CreateRuntimeScript()
     {
+        if (runtimeActionScript_EditMode)
+        {
+            runtimeActionScript_EditMode.ClearDamageFields();
+            runtimeActionScript_EditMode = null;
+        }
+        
         if (runtimeActionScript)
         {
             DestroyImmediate(runtimeActionScript.gameObject);
-            runtimeActionScript_EditMode = null;
         }
-            
+
         if (preview_actor && selectedActionScript)
         {
             GameObject go = Instantiate(selectedActionScript.gameObject, preview_actor.transform.position,
@@ -547,12 +556,18 @@ public class ActionToolWindow : EditorWindow
             isPreviewState = isPreviewState == PreviewState.Play ? PreviewState.Pause : PreviewState.Play;
             lastPreviewUpdateTime = EditorApplication.timeSinceStartup;
             previewTime = 0.0f;
+
+            if (isPreviewState == PreviewState.Play)
+            {
+                runtimeActionScript_EditMode?.ClearDamageFields();
+            }
         }
         if (GUILayout.Button("Stop"))
         {
             isPreviewState = PreviewState.Stop;
             previewFrame = 0;
             previewTime = 0.0f;
+            runtimeActionScript_EditMode?.ClearDamageFields();
         }
         EditorGUILayout.EndHorizontal();
     

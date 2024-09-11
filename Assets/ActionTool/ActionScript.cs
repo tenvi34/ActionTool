@@ -134,7 +134,7 @@ public class ActionScript : MonoBehaviour
             {
                 StartActionEvent(evt);
             }
-            else if ((curFrame >= evt.endFrame || curFrame <= evt.startFrame) && evt.isActive)
+            else if ((curFrame >= evt.endFrame || curFrame < evt.startFrame) && evt.isActive)
             {
                 StopActionEvent(evt);
             }
@@ -194,7 +194,7 @@ public class ActionScript : MonoBehaviour
                 StopSound(evt);
                 break;
             case ActionEventType.DamageField:
-                SpawnDamageField(evt);
+                StopDamageField(evt);
                 break;
         }
     }
@@ -238,12 +238,24 @@ public class ActionScript : MonoBehaviour
         if (evt.eventData is DamageFieldData data)
         {
             GameObject instance = Instantiate(data.damageFieldPrefab, transform.position, Quaternion.identity);
-            evt.activeDamageFields.Add(instance);;
+            evt.activeDamageFields.Add(instance);
         }
     }
 
     private void StopDamageField(ActionEvent evt)
     {
+        if (evt.eventData is DamageFieldData data)
+        {
+            if (data.EndActionType == DamageFieldEndAction.Destroy)
+            {
+                foreach (var evtActiveDamageField in evt.activeDamageFields)
+                {
+                    DestroyCustom(evtActiveDamageField);
+                }
+            }
+            
+            evt.activeDamageFields.Clear();
+        }
     }
 
     private void PlaySound(ActionEvent evt)

@@ -11,14 +11,15 @@ public class DamageField : MonoBehaviour
         
     }
 
-    public void UpdateActionEvent(ActionEvent evt, int in_currentFrame)
+    public void UpdateActionEvent(int in_currentFrame)
     {
         AudioSource[] sources =  GetComponentsInChildren<AudioSource>();
         if (!sources.IsUnityNull() && sources.Length > 0)
         {
             foreach (var audioSource in sources)
             {
-                audioSource.PlayOneShot(audioSource.clip);
+                if(!audioSource.isPlaying)
+                    audioSource.Play();
             }
         }
         
