@@ -7,7 +7,7 @@ using UnityEngine;
 using UnityEngine.Serialization;
 using Object = UnityEngine.Object;
 
-public enum ActionEventType { Animation, Effect, Sound }
+public enum ActionEventType { Animation, Effect, Sound, DamageField }
 
 [System.Serializable]
 public class ActionEvent
@@ -20,7 +20,8 @@ public class ActionEvent
     public bool isActive = false;
     public GameObject activeEffect;
     public AudioSource activeAudio;
-
+    public List<GameObject> activeDamageFields = new();
+    
     public ActionEvent(int id)
     {
         this.id = id;
@@ -31,7 +32,7 @@ public class ActionScript : MonoBehaviour
 {
     private ActionController actionController;
     
-    public int totalFrames = 1;
+    public int totalFrames = 60;
     // New field for frames per second
     public int framesPerSecond = 60;
 
@@ -41,114 +42,44 @@ public class ActionScript : MonoBehaviour
     private bool isPlaying = false;
     private Animator _animator;
 
+#if UNITY_EDITOR
+    public bool IsPlaying
+    {
+        get
+        {
+            return isPlaying;
+        }
+        set
+        {
+            isPlaying = value;
+        }
+    }
+#endif
+
     public void SetActionController(ActionController _actionController)
     {
         actionController = _actionController;
         BindComponents();
     }
     
-#if UNITY_EDITOR
-    public enum PreviewState
-    {
-        Stop,
-        Play,
-        Pause,
-        Timeline
-    }
-
     void DestroyCustom(Object go)
     {
-        #if UNITY_EDITOR
+    #if UNITY_EDITOR
+        
+        if (!EditorApplication.isPlaying)
         {
-            if (EditorApplication.isPlaying)
-            {
-            
-            }
-            else
-            {
-                DestroyImmediate(go);
-                return;
-            }
+            DestroyImmediate(go);
+            return;
         }
-        #endif
+    #endif
+        
         Destroy(go);
     }
     
-    public float originSpeed;
-    public bool bLockAction;
-    
-    private float FrameToTime(int frame)
-    {
-        return (float)frame / framesPerSecond;
-    }
-
     private int TimeToFrame(float time)
     {
         return Mathf.RoundToInt(time * framesPerSecond);
     }
-    
-    public void SetLockAction(PreviewState _v)
-    {
-        if (_v == PreviewState.Stop)
-        {
-            bLockAction = false;
-        }
-        else
-        {
-            bLockAction = true;
-        }
-        
-        if (bLockAction)
-        {
-            if (_animator.speed != 0)
-                originSpeed = _animator.speed;
-
-            _animator.speed = 0.0f;
-            
-            foreach (var actionEvent in actionEvents)
-            {
-                if (actionEvent.isActive && actionEvent.activeEffect)
-                {
-                    ParticleSystem[] pss = actionEvent.activeEffect.GetComponentsInChildren<ParticleSystem>();
-                    foreach (var system in pss)
-                    {
-                        system.Play(true);
-                    }
-                }
-            }
-            
-            // AudioSource[] sources = GetComponents<AudioSource>();
-            // for (var i = 0; i < sources.Length; i++)
-            // {
-            //     if (!sources[i].isPlaying)
-            //         sources[i].Play();
-            // }
-        }
-        else
-        {
-            _animator.speed = originSpeed;
-            
-            foreach (var actionEvent in actionEvents)
-            {
-                if (actionEvent.isActive && actionEvent.activeEffect)
-                {
-                    ParticleSystem[] pss = actionEvent.activeEffect.GetComponentsInChildren<ParticleSystem>();
-                    foreach (var system in pss)
-                    {
-                        system.Play(true);
-                    }
-                }
-            }
-            
-            // AudioSource[] sources = GetComponents<AudioSource>();
-            // for (var i = 0; i < sources.Length; i++)
-            // {
-            //     if (sources[i].isPlaying)
-            //         sources[i].Pause();
-            // }
-        }
-    }
-#endif
     
     public void BindComponents()
     {
@@ -180,115 +111,48 @@ public class ActionScript : MonoBehaviour
                 StopActionEvent(evt);
             }
         }
-        foreach (var audioSource in audioSources.Values)
-        {
-            DestroyCustom(audioSource);
-        }
-        audioSources.Clear();
-        foreach (var coroutine in fadeCoroutines.Values)
-        {
-            StopCoroutine(coroutine);
-        }
-        fadeCoroutines.Clear();
-        
     }
 
     private void Update()
     {
         if (!isPlaying) return;
-
-        if (bLockAction)
-        {
-            _animator.speed = 0.0f;
-            return;
-        }
-
+        
         UpdateAction(TimeToFrame(currentTime));
         currentTime += Time.deltaTime;
     }
 
-    public void UpdateAction(int in_currentFrame)
+    public void UpdateAction(int curFrame)
     {
-        if (0 >= in_currentFrame)
+        if (0 >= curFrame)
         {
             StartAction();
         }
         
         foreach (var evt in actionEvents)
         {
-            if (in_currentFrame >= evt.startFrame && in_currentFrame < evt.endFrame && !evt.isActive)
+            if (curFrame >= evt.startFrame && curFrame < evt.endFrame && !evt.isActive)
             {
                 StartActionEvent(evt);
             }
-            else if ((in_currentFrame >= evt.endFrame || in_currentFrame < evt.startFrame) && evt.isActive)
+            else if ((curFrame >= evt.endFrame || curFrame <= evt.startFrame) && evt.isActive)
             {
                 StopActionEvent(evt);
             }
 
             if (evt.isActive)
             {
-                UpdateActionEvent(evt, in_currentFrame);
+                UpdateActionEvent(evt, curFrame);
             }
         }
         
-        if (in_currentFrame >= totalFrames)
+        if (curFrame >= totalFrames)
         {
             StopAction();
         }
     }
 
-    private void UpdateActionEvent(ActionEvent evt, int in_currentFrame)
+    private void UpdateActionEvent(ActionEvent evt, int curFrame)
     {
-        #if UNITY_EDITOR
-        switch (evt.eventType)
-        {
-            case ActionEventType.Animation:
-                AnimationData data = evt.eventData as AnimationData;
-                if (in_currentFrame >= evt.startFrame)
-                {
-                    _animator.Play(data.AnimationName, data.AnimationLayer, (in_currentFrame - evt.startFrame) / (float)(evt.endFrame - evt.startFrame));
-                    _animator.Update(0.0f);
-                }
-                break;
-            case ActionEventType.Sound:
-                // if (evt.activeAudio != null)
-                // {
-                //     AudioData audioData = evt.eventData as AudioData;
-                //     if (audioData != null && audioData.soundClip != null)
-                //     {
-                //         if (!evt.activeAudio.isPlaying)
-                //         {
-                //             evt.activeAudio.Play();
-                //             StartCoroutine(FadeAudioSource(evt.activeAudio, 0, 1, FADE_DURATION));
-                //         }
-                //         
-                //         double dspTime = AudioSettings.dspTime;
-                //         evt.activeAudio.SetScheduledEndTime(dspTime + PREVIEW_DURATION);
-                //         StartCoroutine(FadeAudioSource(evt.activeAudio, 1, 0, FADE_DURATION, dspTime + PREVIEW_DURATION - FADE_DURATION));
-                //     }
-                // }
-                break;
-            case ActionEventType.Effect:
-            {
-                foreach (var actionEvent in actionEvents)
-                {
-                    if (actionEvent.isActive && actionEvent.activeEffect)
-                    {
-                        ParticleSystem[] pss = actionEvent.activeEffect.GetComponentsInChildren<ParticleSystem>();
-                        foreach (var system in pss)
-                        {
-                            if (in_currentFrame >= actionEvent.startFrame)
-                            {
-                                system.Simulate(in_currentFrame - actionEvent.startFrame, true, true);
-                                system.Pause(true);
-                            }
-                        }
-                    }
-                }
-            }
-                break;
-        }
-        #endif
     }
 
     private void StartActionEvent(ActionEvent evt)
@@ -306,6 +170,9 @@ public class ActionScript : MonoBehaviour
                 break;
             case ActionEventType.Sound:
                 PlaySound(evt);
+                break;
+            case ActionEventType.DamageField:
+                SpawnDamageField(evt);
                 break;
         }
     }
@@ -325,6 +192,9 @@ public class ActionScript : MonoBehaviour
                 break;
             case ActionEventType.Sound:
                 StopSound(evt);
+                break;
+            case ActionEventType.DamageField:
+                SpawnDamageField(evt);
                 break;
         }
     }
@@ -362,6 +232,19 @@ public class ActionScript : MonoBehaviour
                 = null;
         }
     }
+    
+    private void SpawnDamageField(ActionEvent evt)
+    {
+        if (evt.eventData is DamageFieldData data)
+        {
+            GameObject instance = Instantiate(data.damageFieldPrefab, transform.position, Quaternion.identity);
+            evt.activeDamageFields.Add(instance);;
+        }
+    }
+
+    private void StopDamageField(ActionEvent evt)
+    {
+    }
 
     private void PlaySound(ActionEvent evt)
     {
@@ -382,111 +265,4 @@ public class ActionScript : MonoBehaviour
             evt.activeAudio = null;
         }
     }
-    
-     private const float PREVIEW_DURATION = 0.05f; // 50 밀리초로 증가
-    private const float FADE_DURATION = 0.02f; // 20 밀리초로 증가
-    private const float CROSSFADE_DURATION = 0.01f; // 10 밀리초 크로스페이드
-
-    private Dictionary<int, AudioSource> audioSources = new Dictionary<int, AudioSource>();
-    private Dictionary<int, Coroutine> fadeCoroutines = new Dictionary<int, Coroutine>();
-
-    private void UpdateSound(ActionEvent evt, int in_currentFrame)
-    {
-        if (evt.eventData is AudioData audioData && audioData.soundClip != null)
-        {
-            if (!audioSources.TryGetValue(evt.id, out AudioSource audioSource))
-            {
-                audioSource = gameObject.AddComponent<AudioSource>();
-                audioSource.clip = audioData.soundClip;
-                audioSource.playOnAwake = false;
-                audioSource.loop = false;
-                audioSources[evt.id] = audioSource;
-            }
-
-            int eventDuration = evt.endFrame - evt.startFrame;
-            int currentEventTime = in_currentFrame - evt.startFrame;
-            float normalizedTime = Mathf.Clamp01(currentEventTime / (float)eventDuration);
-
-            if (normalizedTime >= 0 && normalizedTime < 1)
-            {
-                float clipTime = normalizedTime * audioData.soundClip.length;
-                
-                // Stop any existing fade coroutine
-                if (fadeCoroutines.TryGetValue(evt.id, out Coroutine existingCoroutine))
-                {
-                    StopCoroutine(existingCoroutine);
-                }
-
-                // Start new crossfade
-                fadeCoroutines[evt.id] = StartCoroutine(CrossfadeAudioSource(audioSource, clipTime));
-            }
-            else if (audioSource.isPlaying)
-            {
-                audioSource.Stop();
-            }
-        }
-    }
-
-    private IEnumerator FadeAudioSource(AudioSource audioSource, float startVolume, float endVolume, float duration, double startTime = 0)
-    {
-        if (startTime == 0) startTime = AudioSettings.dspTime;
-
-        while (AudioSettings.dspTime < startTime)
-        {
-            yield return null;
-        }
-
-        startTime = Time.time;
-        while (Time.time < startTime + duration)
-        {
-            double t = (Time.time - startTime) / duration;
-            if (audioSource.IsUnityNull())
-                yield break;
-            
-            audioSource.volume = Mathf.Lerp(startVolume, endVolume, (float)t);
-            yield return null;
-        }
-        if (audioSource.IsUnityNull())
-            yield break;
-        
-        audioSource.volume = endVolume;
-    }
-    
-    private IEnumerator CrossfadeAudioSource(AudioSource audioSource, float targetTime)
-    {
-        // 새로운 AudioSource를 생성하여 크로스페이드
-        AudioSource newSource = gameObject.AddComponent<AudioSource>();
-        newSource.clip = audioSource.clip;
-        newSource.time = targetTime;
-        newSource.volume = 0;
-        newSource.Play();
-
-        float startTime = Time.time;
-        while (Time.time < startTime + CROSSFADE_DURATION)
-        {
-            float t = (Time.time - startTime) / CROSSFADE_DURATION;
-            audioSource.volume = Mathf.Lerp(1, 0, t);
-            newSource.volume = Mathf.Lerp(0, 1, t);
-            yield return null;
-        }
-
-        audioSource.Stop();
-        DestroyCustom(audioSource);
-
-        // 새로운 소스에 대해 페이드 아웃 시작
-        startTime = Time.time;
-        while (Time.time < startTime + PREVIEW_DURATION)
-        {
-            if (Time.time > startTime + PREVIEW_DURATION - FADE_DURATION)
-            {
-                float t = (Time.time - (startTime + PREVIEW_DURATION - FADE_DURATION)) / FADE_DURATION;
-                newSource.volume = Mathf.Lerp(1, 0, t);
-            }
-            yield return null;
-        }
-
-        newSource.Stop();
-        DestroyCustom(newSource);
-    }
-
 }

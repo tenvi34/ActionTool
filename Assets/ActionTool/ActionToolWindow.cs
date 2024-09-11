@@ -2,9 +2,19 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.VisualScripting;
 using UnityEditor;
 using UnityEngine;
 using UnityEditor.Animations;
+
+
+public enum PreviewState
+{
+    Stop,
+    Play,
+    Pause,
+    Timeline
+}
 
 
 #if UNITY_EDITOR
@@ -15,11 +25,12 @@ public class ActionToolWindow : EditorWindow
 
     private ActionController preview_actor;
     private ActionScript runtimeActionScript;
+    private ActionScript_EditorMode runtimeActionScript_EditMode;
     
     private ActionScript selectedActionScript;
     private Vector2 scrollPosition;
     private int previewFrame = 0;
-    private ActionScript.PreviewState isPreviewState = ActionScript.PreviewState.Stop;
+    private PreviewState isPreviewState = PreviewState.Stop;
     private double lastPreviewUpdateTime;
     private float timelineWidth = 300f;
     private float eventHeight = 20f;
@@ -110,7 +121,7 @@ public class ActionToolWindow : EditorWindow
         preview_actor = EditorGUILayout.ObjectField("PreviewActor", preview_actor, typeof(ActionController), true) as ActionController;
         if (EditorGUI.EndChangeCheck())
         {
-            DestroyImmediate(runtimeActionScript);
+            DestroyImmediate(runtimeActionScript.gameObject);
             selectedActionScript = null;
         }
         
@@ -138,6 +149,7 @@ public class ActionToolWindow : EditorWindow
             {
                 GameObject prefab = new GameObject(actionName);
                 prefab.AddComponent<ActionScript>();
+                prefab.AddComponent<ActionScript_EditorMode>();
                 PrefabUtility.SaveAsPrefabAsset(prefab, actionPreafabName);
                 DestroyImmediate(prefab);
                 AssetDatabase.SaveAssets();
@@ -328,6 +340,26 @@ public class ActionToolWindow : EditorWindow
                     }
     
                     break;
+                case ActionEventType.DamageField:
+                    EditorGUI.BeginChangeCheck();
+                    if (evt.eventData is DamageFieldData data4)
+                    {
+                        data4.damageFieldPrefab = EditorGUILayout.ObjectField("DamageField Prefab", data4.damageFieldPrefab, typeof(GameObject), false) as GameObject;
+                    }
+                    else
+                    {
+                        evt.eventData = CreateInstance<DamageFieldData>();
+                        
+                        string uniqueName = AssetDatabase.GenerateUniqueAssetPath($"{ActionEventsFolderPath}/{Guid.NewGuid().ToString()}.asset");
+                        AssetDatabase.CreateAsset(evt.eventData , uniqueName);
+                        AssetDatabase.SaveAssets();
+                    }
+    
+                    if (EditorGUI.EndChangeCheck())
+                    {
+                    }
+    
+                    break;
             }
     
             if (EditorGUI.EndChangeCheck())
@@ -377,12 +409,17 @@ public class ActionToolWindow : EditorWindow
     private void CreateRuntimeScript()
     {
         if (runtimeActionScript)
+        {
             DestroyImmediate(runtimeActionScript.gameObject);
-        
+            runtimeActionScript_EditMode = null;
+        }
+            
         if (preview_actor && selectedActionScript)
         {
-            runtimeActionScript = Instantiate(selectedActionScript.gameObject, preview_actor.transform.position,
-                preview_actor.transform.rotation).GetComponent<ActionScript>();
+            GameObject go = Instantiate(selectedActionScript.gameObject, preview_actor.transform.position,
+                preview_actor.transform.rotation);
+            runtimeActionScript = go.AddComponent<ActionScript>();
+            runtimeActionScript_EditMode = go.AddComponent<ActionScript_EditorMode>();
         }
     }
 
@@ -503,17 +540,17 @@ public class ActionToolWindow : EditorWindow
     
         EditorGUILayout.BeginHorizontal();
     
-        string btnName = isPreviewState == ActionScript.PreviewState.Play ? "Pause" : "Play";
+        string btnName = isPreviewState == PreviewState.Play ? "Pause" : "Play";
         
         if (GUILayout.Button(btnName))
         {
-            isPreviewState = isPreviewState == ActionScript.PreviewState.Play ? ActionScript.PreviewState.Pause : ActionScript.PreviewState.Play;
+            isPreviewState = isPreviewState == PreviewState.Play ? PreviewState.Pause : PreviewState.Play;
             lastPreviewUpdateTime = EditorApplication.timeSinceStartup;
             previewTime = 0.0f;
         }
         if (GUILayout.Button("Stop"))
         {
-            isPreviewState = ActionScript.PreviewState.Stop;
+            isPreviewState = PreviewState.Stop;
             previewFrame = 0;
             previewTime = 0.0f;
         }
@@ -523,10 +560,10 @@ public class ActionToolWindow : EditorWindow
         previewFrame = EditorGUILayout.IntSlider("Frame", previewFrame, 0, selectedActionScript.totalFrames);
         if (EditorGUI.EndChangeCheck())
         {
-            isPreviewState = ActionScript.PreviewState.Timeline;
+            isPreviewState = PreviewState.Timeline;
             PreviewActionAtFrame(previewFrame);
         }
-        if (isPreviewState == ActionScript.PreviewState.Play)
+        if (isPreviewState == PreviewState.Play)
         {
             double frameDiff = EditorApplication.timeSinceStartup - lastPreviewUpdateTime;
             previewTime += frameDiff * selectedActionScript.framesPerSecond;
@@ -547,19 +584,16 @@ public class ActionToolWindow : EditorWindow
     
     private void PreviewActionAtFrame(int frame)
     {
-        if (!runtimeActionScript)
-        {
+        if (runtimeActionScript_EditMode.IsUnityNull())
             return;
-        }
-
-        runtimeActionScript.SetActionController(preview_actor);
-        runtimeActionScript.SetLockAction(isPreviewState);
         
-        runtimeActionScript.UpdateAction(frame);
+        runtimeActionScript_EditMode.SetActionController(preview_actor);
+        runtimeActionScript_EditMode.UpdateAction(frame);
     
         SceneView.RepaintAll();
     }
-    
+
+
     private Color GetEventColor(ActionEventType eventType)
     {
         switch (eventType)
@@ -570,6 +604,8 @@ public class ActionToolWindow : EditorWindow
                 return new Color(0.2f, 1f, 0.4f, 0.8f);
             case ActionEventType.Sound:
                 return new Color(1f, 0.8f, 0.2f, 0.8f);
+            case ActionEventType.DamageField:
+                return new Color(1f, 0.0f, 0.2f, 0.8f);
             default:
                 return Color.gray;
         }
