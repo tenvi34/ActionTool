@@ -21,7 +21,9 @@ public class ActionToolWindow : EditorWindow
     // Action Event들의 저장경로 (eventType에 따른)
     private const string ActionEventsFolderPath = "Assets/ActionEvents";
     // Action Prefab의 저장 경로(Action 그 자체)
-    private const string ActionPrefabsFolderPath = "Assets/ActionPrefabs";
+    public const string ActionPrefabsFolderPath = "Assets/ActionPrefabs";
+    
+    private List<string> actionScriptPrefabPaths = new List<string>();
 
     // 내가 제어할 캐릭터
     private ActionController preview_actor;
@@ -76,6 +78,8 @@ public class ActionToolWindow : EditorWindow
     // 액션 이벤트 네임
     private string actionName;
 
+    private ActionToolWindow_ObjetSelectWindow objetSelectWindow;
+
     // 프레임을 2번째 인자에 맞게 시간단위로 변화시키는 api
     private float FrameToTime(int frame, int framesPerSecond)
     {
@@ -92,6 +96,11 @@ public class ActionToolWindow : EditorWindow
     void OnDestroy()
     {
         DestroyActionScripts();
+        if (objetSelectWindow)
+        {
+            objetSelectWindow.Close();
+            objetSelectWindow = null;
+        }
     }
     
 
@@ -164,7 +173,7 @@ public class ActionToolWindow : EditorWindow
 
     // 에디터상에서 UI가 그려지고 있을때 마치 Update처럼 호출되는 함수
     private void OnGUI()
-    {
+    {   
         GUILayout.Label("Action Tool", EditorStyles.boldLabel);
      
         // BeginChangeCheck ~ EndChangeCheck까지 검사르를해서 EditorGUILayout 의 변경사항이 있으면 후처리를 할수 있는 함수들
@@ -184,7 +193,35 @@ public class ActionToolWindow : EditorWindow
         }
         
         EditorGUI.BeginChangeCheck();
+
+        // 가로로 UI를 배치하겠다.
+        EditorGUILayout.BeginHorizontal();
+        
+        // 끌어다 놓을수 있게도 하고 무슨 에셋이 선택됬는지 볼수 있게 ObjectField로 표현한다.
         selectedActionScript = EditorGUILayout.ObjectField("ActionScript", selectedActionScript, typeof(ActionScript), false) as ActionScript;
+        
+        // Width가 200인 Select ActionScript 를 만든다.
+        if (GUILayout.Button("Select ActionScript",  GUILayout.Width(200)))
+        {
+            // 오브젝터 선택창이 있으면 삭제한다.
+            if (objetSelectWindow)
+            {
+                objetSelectWindow.Close();
+                objetSelectWindow = null;
+            }
+            
+            // 이렇게 멤버로 가져올수 있다.
+            objetSelectWindow = GetWindow<ActionToolWindow_ObjetSelectWindow>("ObjetSelectWindow");
+            
+            // 에셋을 select하면 selectedActionScript가 채워진다.
+            objetSelectWindow.SelectedActionScript = (o) =>
+            {
+                selectedActionScript = o.GetComponent<ActionScript>();
+                // selectedAction이 바뀌었으니 runtimeScript도 갱신해준다.
+                CreateRuntimeScript();
+            };
+        }
+        EditorGUILayout.EndHorizontal();
         if (EditorGUI.EndChangeCheck())
         {
             CreateRuntimeScript();

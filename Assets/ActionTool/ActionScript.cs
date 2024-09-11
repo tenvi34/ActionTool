@@ -126,8 +126,6 @@ public class ActionScript : MonoBehaviour
         }
     }
     
-    // 액션이 가동되면 isPlaying이 true인데 
-    // 액션툴에서는 쓰지 않기 위해 isPlaying을 false로 변경한다.
     private void Update()
     {
         if (!isPlaying) return;
