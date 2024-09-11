@@ -124,7 +124,8 @@ public class ActionToolWindow : EditorWindow
         ActionScript[] actionScripts = GameObject.FindObjectsOfType<ActionScript>();
         foreach (var actionScript in actionScripts)
         {
-            DestroyImmediate(actionScript.gameObject);
+            if (!actionScript.IsUnityNull())
+                DestroyImmediate(actionScript.gameObject);
         }
     }
 
@@ -300,7 +301,8 @@ public class ActionToolWindow : EditorWindow
             EditorGUILayout.BeginVertical(GUI.skin.box);
     
             evt.eventType = (ActionEventType)EditorGUILayout.EnumPopup("Event Type", evt.eventType);
-    
+
+            var prevEventData = evt.eventData;
             EditorGUI.BeginChangeCheck();
             switch (evt.eventType)
             {
@@ -357,7 +359,7 @@ public class ActionToolWindow : EditorWindow
                         AssetDatabase.SaveAssets();
                         // ctrl + s 효과를 낸다.
                     }
-    
+                    
                     if (EditorGUI.EndChangeCheck())
                     {
                         if (preview_actor)
@@ -483,6 +485,17 @@ public class ActionToolWindow : EditorWindow
                     break;
             }
     
+            
+            if (prevEventData != evt.eventData)
+            {
+                if (prevEventData != null)
+                {
+                    string path = AssetDatabase.GetAssetPath(prevEventData);
+                    AssetDatabase.DeleteAsset(path);
+                }
+            }
+
+            
             if (EditorGUI.EndChangeCheck())
             {
                 EditorUtility.SetDirty(evt.eventData);
