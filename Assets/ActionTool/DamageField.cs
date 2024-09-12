@@ -21,6 +21,7 @@ public class DamageField : MonoBehaviour
     void OnTriggerEnter(Collider collision)
     {
         Debug.Log(collision.gameObject.name);
+        collision.attachedRigidbody?.AddForce(Vector3.up * 2, ForceMode.Impulse); // 넉백
     }
     
     void OnTriggerExit(Collider collision)

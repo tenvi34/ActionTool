@@ -11,10 +11,12 @@ public class ActionController : MonoBehaviour
     {
         if (currentAction)
         {
-            Destroy(currentAction);
+            Destroy(currentAction.gameObject);
             currentAction = null;
         }
         
         currentAction = Instantiate(MyActions[index], transform.position, transform.rotation);
+        currentAction.SetActionController(this);
+        currentAction.StartAction();
     }
 }

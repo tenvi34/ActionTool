@@ -124,6 +124,8 @@ public class ActionScript : MonoBehaviour
                 StopActionEvent(evt);
             }
         }
+        
+        Destroy(this.gameObject);
     }
     
     private void Update()
