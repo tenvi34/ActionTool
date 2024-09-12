@@ -3,8 +3,9 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.Serialization;
 
-public enum DamageFieldAffactType
+public enum DamageFieldAffectType
 {
     Once,
     HitInterval
@@ -12,7 +13,7 @@ public enum DamageFieldAffactType
 
 public class DamageField : MonoBehaviour
 {
-    public DamageFieldAffactType damageFieldAffactType;
+    public DamageFieldAffectType damageFieldAffectType;
     public float hitInterval;
     
     private Coroutine hitIntervalCoroutine;
