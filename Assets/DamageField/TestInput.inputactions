@@ -1,0 +1,34 @@
+{
+    "name": "TestInput",
+    "maps": [
+        {
+            "name": "TestInput",
+            "id": "84054e5e-49bf-487f-974c-12a5cc52b427",
+            "actions": [
+                {
+                    "name": "Dir",
+                    "type": "PassThrough",
+                    "id": "64ba01c3-e8e6-4e75-85b9-240e9a558152",
+                    "expectedControlType": "Vector2",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "f57535b1-09fb-469d-864e-367644b4897a",
+                    "path": "",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Dir",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
+        }
+    ],
+    "controlSchemes": []
+}

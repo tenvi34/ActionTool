@@ -4,9 +4,25 @@ using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
 
+public enum DamageFieldAffactType
+{
+    Once,
+    HitInterval
+}
+
 public class DamageField : MonoBehaviour
 {
-    private void OnCollisionEnter(Collision other)
+    public DamageFieldAffactType damageFieldAffactType;
+    public float hitInterval;
+    
+    private Coroutine hitIntervalCoroutine;
+    
+    void OnTriggerEnter(Collider collision)
+    {
+        Debug.Log(collision.gameObject.name);
+    }
+    
+    void OnTriggerExit(Collider collision)
     {
         
     }

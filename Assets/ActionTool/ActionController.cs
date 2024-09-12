@@ -4,15 +4,17 @@ using UnityEngine;
 
 public class ActionController : MonoBehaviour
 {
-    // Start is called before the first frame update
-    void Start()
+    public List<ActionScript> MyActions;
+    public ActionScript currentAction;
+   
+    public void FireAction(int index)
     {
+        if (currentAction)
+        {
+            Destroy(currentAction);
+            currentAction = null;
+        }
         
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
+        currentAction = Instantiate(MyActions[index], transform.position, transform.rotation);
     }
 }
