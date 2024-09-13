@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 public enum DamageFieldAffectType
 {
@@ -20,8 +19,15 @@ public class DamageField : MonoBehaviour
     
     void OnTriggerEnter(Collider collision)
     {
-        Debug.Log(collision.gameObject.name);
-        collision.attachedRigidbody?.AddForce(Vector3.up * 2, ForceMode.Impulse); // 넉백
+        if (collision.TryGetComponent<Monster> (out Monster monster))
+        {
+            monster.OnKnockback(Vector3.up * 2);
+
+            if (damageFieldAffectType == DamageFieldAffectType.Once)
+            {
+                Destroy(gameObject);
+            }
+        }
     }
     
     void OnTriggerExit(Collider collision)

@@ -16,13 +16,13 @@ public class PlayerController : MonoBehaviour
         
         dir.Enable();
 
-        // var FireSkill1 = GetComponent<PlayerInput>().actions["FireSkill1"];
-        // FireSkill1.Enable();
-        // FireSkill1.performed += context =>
-        // {
-        //     Debug.Log("Performed");
-        //     actionController.FireAction(0);
-        // };
+        var FireSkill1 = GetComponent<PlayerInput>().actions["FireSkill1"];
+        FireSkill1.Enable();
+        FireSkill1.performed += context =>
+        {
+            Debug.Log("Performed");
+            actionController.FireAction(0);
+        };
 
         actionController = GetComponent<ActionController>();
     }
