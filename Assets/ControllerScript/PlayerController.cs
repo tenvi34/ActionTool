@@ -12,6 +12,7 @@ public class PlayerController : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
+        actionController = GetComponent<ActionController>();
         dir = GetComponent<PlayerInput>().actions["Dir"];
         
         dir.Enable();
@@ -20,7 +21,6 @@ public class PlayerController : MonoBehaviour
         FireSkill1.Enable();
         FireSkill1.performed += context =>
         {
-            Debug.Log("Performed");
             actionController.FireAction(0);
         };
 
