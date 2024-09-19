@@ -257,6 +257,7 @@ public class ActionScript : MonoBehaviour
         if (evt.eventData is DamageFieldData data)
         {
             GameObject instance = Instantiate(data.damageFieldPrefab, transform.position, Quaternion.identity);
+            instance.GetComponent<DamageField>().Owner = gameObject;
             evt.activeDamageFields.Add(instance);
         }
     }

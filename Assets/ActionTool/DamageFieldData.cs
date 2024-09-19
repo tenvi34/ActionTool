@@ -11,5 +11,6 @@ public class DamageFieldData : ScriptableObject
     [SerializeField]
     public GameObject damageFieldPrefab;
 
-    [SerializeField] public DamageFieldEndAction EndActionType;
+    [SerializeField] 
+    public DamageFieldEndAction EndActionType;
 }

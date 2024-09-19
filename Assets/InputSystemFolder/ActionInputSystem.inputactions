@@ -13,6 +13,24 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": true
+                },
+                {
+                    "name": "FireSkill1",
+                    "type": "Button",
+                    "id": "7d74fecb-b804-4acc-b965-d8d5543881bc",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "FireSkill2",
+                    "type": "Button",
+                    "id": "3815ed60-9196-49fe-857a-3706b7317529",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
                 }
             ],
             "bindings": [
@@ -70,6 +88,28 @@
                     "action": "Dir",
                     "isComposite": false,
                     "isPartOfComposite": true
+                },
+                {
+                    "name": "",
+                    "id": "82519cda-40a5-45a9-a7b0-095420ba82b5",
+                    "path": "<Keyboard>/l",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "PC",
+                    "action": "FireSkill2",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "6e35143e-f893-4995-8906-a5f0376bc851",
+                    "path": "<Keyboard>/k",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "PC",
+                    "action": "FireSkill1",
+                    "isComposite": false,
+                    "isPartOfComposite": false
                 }
             ]
         }

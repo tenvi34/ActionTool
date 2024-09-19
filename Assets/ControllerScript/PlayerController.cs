@@ -23,6 +23,13 @@ public class PlayerController : MonoBehaviour
         {
             actionController.FireAction(0);
         };
+        
+        var FireSkill2 = GetComponent<PlayerInput>().actions["FireSkill2"];
+        FireSkill2.Enable();
+        FireSkill2.performed += context =>
+        {
+            actionController.FireAction(1);
+        };
 
         actionController = GetComponent<ActionController>();
     }
@@ -30,8 +37,8 @@ public class PlayerController : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        var Directin = dir.ReadValue<Vector2>();
-        Vector3 dirTo3D = new Vector3(Directin.x, 0, Directin.y);
+        var Direction = dir.ReadValue<Vector2>();
+        Vector3 dirTo3D = new Vector3(Direction.x, 0, Direction.y);
 
         Vector3 MoveDelta = dirTo3D * Speed * Time.deltaTime;
         GetComponent<Rigidbody>().MovePosition(transform.position + MoveDelta);

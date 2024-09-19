@@ -12,29 +12,12 @@ public enum DamageFieldAffectType
 
 public class DamageField : MonoBehaviour
 {
+    public GameObject Owner;
     public DamageFieldAffectType damageFieldAffectType;
     public float hitInterval;
     
     private Coroutine hitIntervalCoroutine;
     
-    void OnTriggerEnter(Collider collision)
-    {
-        if (collision.TryGetComponent<Monster> (out Monster monster))
-        {
-            monster.OnKnockback(Vector3.up * 2);
-
-            if (damageFieldAffectType == DamageFieldAffectType.Once)
-            {
-                Destroy(gameObject);
-            }
-        }
-    }
-    
-    void OnTriggerExit(Collider collision)
-    {
-        
-    }
-
     public void UpdateActionEvent(int in_currentFrame)
     {
         AudioSource[] sources =  GetComponentsInChildren<AudioSource>();

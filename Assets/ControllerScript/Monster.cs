@@ -31,9 +31,37 @@ public class Monster : MonoBehaviour
         
     }
 
-    public void OnKnockback(Vector3 force)
+    public void OnKnockback(float power, KnockbackTargetType knockbackTargetType, Transform attacker, KnockbackType knockbackType, KnockbackDirectionType knockbackDirectionType)
     {
-        rb.AddForce(force, ForceMode.Impulse);
+        Transform targetTransform = knockbackTargetType == KnockbackTargetType.Attacker ? attacker : transform;
+        
+        Vector3 direction = Vector3.zero;
+        if (knockbackType == KnockbackType.Absolute)
+        {
+            switch (knockbackDirectionType)
+            {
+                case KnockbackDirectionType.BACK:
+                    direction = Vector3.back;
+                    break;
+                case KnockbackDirectionType.UP:
+                    direction = Vector3.up;
+                    break;
+            }
+        }
+        else if (knockbackType == KnockbackType.Relative)
+        {
+            switch (knockbackDirectionType)
+            {
+                case KnockbackDirectionType.BACK:
+                    direction = targetTransform.forward;
+                    break;
+                case KnockbackDirectionType.UP:
+                    direction = Vector3.up;
+                    break;
+            }
+        }
+        
+        rb.AddForce(direction * power, ForceMode.Impulse);
         if (monsterState == MonsterState.None)
         {
             monsterState = MonsterState.KnockbackStart;
@@ -60,14 +88,13 @@ public class Monster : MonoBehaviour
                 newPosition.y = knockBeginHeight + KnockbackMaxHeight;
                 transform.position = newPosition;
                 
-                // 수직 속도를 0으로 설정하여 더 이상 올라가지 않도록 한다.
+                // 수직 속도를 0으로 설정하여 더 이상 올라가지 않도록 합니다.
                 Vector3 velocity = rb.velocity;
                 velocity.y = 0;
                 rb.velocity = velocity;
             }
 
-            // 몬스터의 y값이 넉백이 시작된 위치면서 움직이는 방향이 Down이면
-            if (transform.position.y <= knockBeginHeight && rb.velocity.y < 0)
+            if (rb.velocity.magnitude < 0)
             {
                 // 몬스터의 상태를 None으로 변경
                 monsterState = MonsterState.None;
